@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VoyageLog" />
+  <title>VoyageLog — Personal Trip & Storyboard Planner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade { animation: fadeIn 0.2s ease-out forwards; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+
+  <!-- Top Offline & Sync Status Bar -->
+  <div id="sync-banner" class="bg-emerald-600 text-white text-xs font-semibold px-3 md:px-6 py-2 flex items-center justify-between transition-colors sticky top-0 z-40">
+    <div class="flex items-center gap-2 truncate">
+      <span id="sync-dot" class="w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0"></span>
+      <span id="sync-status-text" class="truncate">Offline Ready • Tap GitHub Sync to connect repo</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button type="button" onclick="openInstallGuide()" class="bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full text-[11px] font-bold transition">
+        <i class="fa-solid fa-mobile-screen-button mr-1"></i>Install App
+      </button>
+      <button type="button" id="offline-toggle-btn" onclick="toggleOfflineSimulation()" class="bg-white/20 hover:bg-white/30 px-2.5 py-1 rounded-full text-[11px] font-bold transition">
+        Test Airplane Mode
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Responsive App Shell (Auto-adapts Mobile <-> Tablet <-> PC) -->
+  <div class="flex-1 w-full max-w-7xl mx-auto flex flex-col lg:flex-row">
+
+    <!-- PC / Desktop Persistent Sidebar Navigation (Hidden on Mobile, Auto-shown on lg+ screens) -->
+    <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:shrink-0 lg:sticky lg:top-9 lg:h-[calc(100vh-2.25rem)] bg-white border-r border-slate-200 p-4 justify-between overflow-y-auto">
+      <div class="space-y-4">
+        <div class="flex items-center gap-2.5 px-2">
+          <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-extrabold shadow-sm">
+            <i class="fa-solid fa-compass"></i>
+          </div>
+          <div>
+            <div class="text-sm font-extrabold text-slate-900 leading-tight">VoyageLog</div>
+            <div class="text-[11px] text-slate-500 font-medium">Shared Travel Hub</div>
+          </div>
+        </div>
+
+        <nav id="desktop-nav" class="space-y-1"></nav>
+      </div>
+
+      <div class="pt-4 border-t border-slate-100 space-y-2">
+        <button type="button" onclick="openAddModal()" class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-rose-500 to-orange-500 hover:opacity-95 text-white text-xs font-extrabold shadow-sm flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-plus"></i> Add Stop / Doc
+        </button>
+        <button type="button" onclick="exportTravelBlog()" class="w-full py-2 px-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-file-export"></i> Export HTML Blog
+        </button>
+      </div>
+    </aside>
+
+    <!-- Primary Content Area -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Vibrant Sunset Gradient Hero Header (Matches Screenshot Color Combination) -->
+      <header class="bg-white border-b border-slate-200">
+        <div class="bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 text-white px-4 md:px-6 pt-4 pb-5">
+          <!-- Top Row: Trip Switcher Pills & + New Trip -->
+          <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/20">
+            <div id="trip-pills-bar" class="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1"></div>
+            <button type="button" onclick="openNewTripModal()" class="shrink-0 bg-white/25 hover:bg-white/35 text-white px-3.5 py-1.5 rounded-full text-xs font-extrabold transition">
+              + New Trip
+            </button>
+          </div>
+
+          <!-- Middle Row: Date Badge, Title, Cities Subtitle & Shared Access Badge -->
+          <div class="flex items-start justify-between gap-3 pt-3.5">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span id="trip-dates-badge" class="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-bold">
+                  <i class="fa-solid fa-plane"></i>
+          <!-- Middle Row: Date Badge (Editable), Title & Cities Subtitle -->
+          <div class="flex items-start justify-between gap-3 pt-3.5">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button type="button" id="trip-dates-badge" onclick="editTripDates()" title="Tap to edit trip dates" class="inline-flex items-center gap-1.5 bg-white/20 hover:bg-white/30 backdrop-blur-xs px-3 py-1 rounded-full text-xs font-bold transition">
+                  <i class="fa-solid fa-plane"></i>
+                  <span id="trip-dates-subtitle">Nov 12 – Nov 26 • Shared Trip</span>
+                  <i class="fa-solid fa-pen text-[10px] opacity-80 ml-0.5"></i>
+                </button>
+                <span id="queued-badge" class="hidden text-[10px] font-extrabold bg-slate-900/70 text-amber-200 px-2.5 py-1 rounded-full">0 pending sync</span>
+              </div>
+              <h1 id="hero-trip-title" class="text-2xl md:text-3xl font-extrabold tracking-tight mt-2">Mexico Adventure</h1>
+              <p id="hero-cities-line" class="text-xs md:text-sm text-white/90 font-medium mt-0.5 truncate">Mexico City • Oaxaca • Mérida & Tulum</p>
+            </div>
+          </div>
+
+          <!-- Bottom Row: 3 Glassmorphic Summary Stat Cards (CITIES, VISITED, TOTAL SPENT) -->
+          <div class="grid grid-cols-3 gap-2.5 md:gap-4 mt-4">
+            <div class="bg-white/20 backdrop-blur-xs border border-white/20 rounded-2xl px-3.5 py-2.5">
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-white/85">Cities</div>
+              <div id="stat-cities-count" class="text-lg md:text-xl font-extrabold mt-0.5">3</div>
+            </div>
+            <div class="bg-white/20 backdrop-blur-xs border border-white/20 rounded-2xl px-3.5 py-2.5">
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-white/85">Visited</div>
+              <div id="stat-visited-count" class="text-lg md:text-xl font-extrabold mt-0.5">0 / 4</div>
+            </div>
+            <button type="button" onclick="switchTab('budget')" class="text-left bg-white/20 hover:bg-white/25 backdrop-blur-xs border border-white/20 rounded-2xl px-3.5 py-2.5 transition">
+              <div class="text-[10px] font-extrabold uppercase tracking-wider text-white/85">Total Spent</div>
+              <div id="header-total-spent" class="text-lg md:text-xl font-extrabold mt-0.5">$0</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Clean White Wanderlog Module Strip (Horizontal scroll on Mobile, also accessible via PC Sidebar) -->
+        <div id="mobile-module-strip" class="lg:hidden bg-white flex items-center gap-2 overflow-x-auto no-scrollbar px-4 py-3"></div>
+      </header>
+
+      <!-- Dynamic Main Workspace -->
+      <main id="main-content" class="flex-1 p-4 md:p-6 pb-24 lg:pb-10 space-y-5"></main>
+    </div>
+  </div>
+
+  <!-- Mobile Floating Action Button -->
+  <button type="button" onclick="openAddModal()" aria-label="Add item" class="lg:hidden fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full bg-rose-500 hover:bg-rose-600 active:scale-95 text-white shadow-lg shadow-rose-500/30 flex items-center justify-center text-xl transition">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- Mobile Bottom Quick Tab Bar -->
+  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 pb-safe flex items-center justify-around">
+    <button type="button" onclick="switchTab('itinerary')" data-nav="itinerary" class="mobile-bottom-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold text-rose-500">
+      <i class="fa-solid fa-route text-base"></i><span>Itinerary</span>
+    </button>
+    <button type="button" onclick="switchTab('story')" data-nav="story" class="mobile-bottom-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold text-slate-500">
+      <i class="fa-solid fa-book-open text-base"></i><span>Story/Blog</span>
+    </button>
+    <button type="button" onclick="switchTab('shared_docs')" data-nav="shared_docs" class="mobile-bottom-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold text-slate-500">
+      <i class="fa-solid fa-folder-open text-base"></i><span>Docs/Share</span>
+    </button>
+    <button type="button" onclick="switchTab('budget')" data-nav="budget" class="mobile-bottom-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold text-slate-500">
+      <i class="fa-solid fa-wallet text-base"></i><span>Budget</span>
+    </button>
+    <button type="button" onclick="switchTab('sync')" data-nav="sync" class="mobile-bottom-btn flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold text-slate-500">
+      <i class="fa-brands fa-github text-base"></i><span>GitHub</span>
+    </button>
+  </nav>
+
+  <!-- Toast Message Box -->
+  <div id="toast-box" class="fixed top-14 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
+    <div id="toast-msg" class="bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-xl flex items-center gap-2"></div>
+  </div>
+
+  <!-- Add Place / City / Ticket / Document Modal -->
+  <div id="add-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl animate-fade">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-slate-900">Add to Your Shared Trip</h3>
+        <button type="button" onclick="closeAddModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Entry Type Selector -->
+      <div class="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
+        <button type="button" id="type-btn-place" onclick="setModalType('place')" class="py-2 rounded-xl bg-white text-slate-900 shadow-xs">Place / Stop</button>
+        <button type="button" id="type-btn-city" onclick="setModalType('city')" class="py-2 rounded-xl text-slate-600">New City</button>
+        <button type="button" id="type-btn-ticket" onclick="setModalType('ticket')" class="py-2 rounded-xl text-slate-600">Ticket / Doc</button>
+      </div>
+
+      <!-- Form: Place / Activity -->
+      <form id="form-place" onsubmit="submitNewPlace(event)" class="space-y-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">City</label>
+            <select id="place-city-select" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none"></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Category</label>
+            <select id="place-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none">
+              <option value="Sightseeing">Sightseeing</option>
+              <option value="Food & Café">Food & Café</option>
+              <option value="Museum">Museum</option>
+              <option value="Transport">Transport</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Lodging">Lodging</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Place / Activity Name *</label>
+          <input id="place-title" type="text" required placeholder="e.g., Castillo de Chapultepec" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-rose-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Price / Cost</label>
+            <input id="place-price" type="number" step="0.01" min="0" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Photo Frame</label>
+            <select id="place-photo-shape" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none">
+              <option value="wide">Wide (16:9)</option>
+              <option value="square">Square (1:1)</option>
+              <option value="tall">Tall Portrait</option>
+              <option value="fit">Full Fit (Uncropped)</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Notes, Tips & Links (https://...)</label>
+          <textarea id="place-note" rows="2" placeholder="Add tips, booking links, or memories..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"></textarea>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <label class="flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-rose-400 rounded-xl p-2.5 text-xs font-bold text-slate-600 cursor-pointer">
+            <i class="fa-solid fa-camera text-rose-500"></i>
+            <span id="place-photo-label">Attach Photo</span>
+            <input id="place-photo-input" type="file" accept="image/*" class="hidden" onchange="document.getElementById('place-photo-label').textContent = this.files[0]?.name || 'Attach Photo'" />
+          </label>
+          <label class="flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-2.5 text-xs font-bold text-slate-600 cursor-pointer">
+            <i class="fa-solid fa-file-arrow-up text-blue-500"></i>
+            <span id="place-doc-label">Attach PDF / Doc</span>
+            <input id="place-doc-input" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" class="hidden" onchange="document.getElementById('place-doc-label').textContent = this.files[0]?.name || 'Attach PDF / Doc'" />
+          </label>
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold shadow-sm">Save Place to Trip</button>
+      </form>
+
+      <!-- Form: New City -->
+      <form id="form-city" onsubmit="submitNewCity(event)" class="hidden space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">City / Destination Name *</label>
+          <input id="city-name" type="text" required placeholder="e.g., Guanajuato" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Dates / Days</label>
+          <input id="city-dates" type="text" placeholder="e.g., Nov 18 – Nov 21 (3 nights)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">City Overview / Notes & Links</label>
+          <textarea id="city-note" rows="2" placeholder="Neighborhood tips, safety notes, links..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"></textarea>
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold">Add City Chapter</button>
+      </form>
+
+      <!-- Form: Ticket / Reservation / Document -->
+      <form id="form-ticket" onsubmit="submitNewTicket(event)" class="hidden space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Type</label>
+            <select id="ticket-type" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none">
+              <option value="Flight">Flight</option>
+              <option value="Lodging">Lodging / Hotel</option>
+              <option value="Train / Bus">Train / Bus</option>
+              <option value="Attraction">Attraction Pass</option>
+              <option value="Insurance / Visa">Insurance / Visa</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Booking Code / Ref</label>
+            <input id="ticket-code" type="text" placeholder="e.g., AMX-8942" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Title / Route / Hotel Name *</label>
+          <input id="ticket-title" type="text" required placeholder="e.g., Aeromexico FRA → MEX" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Date & Time</label>
+            <input id="ticket-date" type="text" placeholder="e.g., Nov 12, 13:40" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Price Paid</label>
+            <input id="ticket-price" type="number" step="0.01" min="0" placeholder="0.00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+        </div>
+        <label class="flex items-center justify-center gap-2 border border-dashed border-slate-300 hover:border-rose-400 rounded-xl p-3 text-xs font-bold text-slate-600 cursor-pointer">
+          <i class="fa-solid fa-paperclip text-rose-500"></i>
+          <span id="ticket-file-label">Attach Boarding Pass / Voucher (PDF or Image)</span>
+          <input id="ticket-file-input" type="file" accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="document.getElementById('ticket-file-label').textContent = this.files[0]?.name || 'Attach Boarding Pass / Voucher'" />
+        </label>
+        <button type="submit" class="w-full py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold">Save Reservation & File</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- New Trip / Country Modal -->
+  <div id="new-trip-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl animate-fade">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-slate-900">Plan Another Country / Trip</h3>
+        <button type="button" onclick="document.getElementById('new-trip-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="submitNewTrip(event)" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">Trip Name *</label>
+          <input id="new-trip-name" type="text" required placeholder="e.g., Japan Spring Tour 2027" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Dates</label>
+            <input id="new-trip-dates" type="text" placeholder="e.g., Apr 10 – Apr 24" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Currency Symbol</label>
+            <input id="new-trip-currency" type="text" value="€" maxlength="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-1">First City *</label>
+          <input id="new-trip-city" type="text" required placeholder="e.g., Tokyo" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold">Create Trip Workspace</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ticket / Document Viewer Modal -->
+  <div id="doc-viewer-modal" class="hidden fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg rounded-3xl p-5 space-y-4 shadow-2xl animate-fade max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 id="doc-viewer-title" class="text-sm font-extrabold text-slate-900 truncate pr-2">Document Preview</h3>
+        <button type="button" onclick="document.getElementById('doc-viewer-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="doc-viewer-body" class="space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- Install App Shortcut Modal -->
+  <div id="install-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl animate-fade">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-slate-900">Add Shortcut to Phone Screen</h3>
+        <button type="button" onclick="document.getElementById('install-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="font-extrabold text-slate-900 mb-1"><i class="fa-brands fa-apple mr-1.5"></i>iPhone / iPad (Safari)</div>
+          <p>Open your hosted GitHub link in <strong>Safari</strong>, tap the <strong>Share</strong> icon at the bottom, and choose <strong>Add to Home Screen</strong>.</p>
+        </div>
+        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+          <div class="font-extrabold text-slate-900 mb-1"><i class="fa-brands fa-android mr-1.5 text-emerald-600"></i>Android (Chrome)</div>
+          <p>Open your link in <strong>Chrome</strong>, tap the <strong>⋮ menu</strong> in the top-right corner, and tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. DEFAULT TRIP STATE & MULTI-COUNTRY STORAGE
+    // =========================================================================
+    const STORAGE_KEY = 'voyagelog_personal_v3';
+
+    const MODULES = [
+      { id: 'itinerary', label: 'Itinerary', icon: 'fa-list-check' },
+      { id: 'story', label: 'Story / Blog', icon: 'fa-book-open' },
+      { id: 'shared_docs', label: 'Docs & Share', icon: 'fa-folder-open' },
+      { id: 'reservations', label: 'Reservations', icon: 'fa-ticket' },
+      { id: 'lodging', label: 'Lodging', icon: 'fa-bed' },
+      { id: 'flights', label: 'Flight status', icon: 'fa-plane-departure' },
+      { id: 'packing', label: 'Packing', icon: 'fa-circle-check' },
+      { id: 'route', label: 'Route & Maps', icon: 'fa-route' },
+      { id: 'guides', label: 'Travel guides', icon: 'fa-book' },
+      { id: 'calendar', label: 'Calendar Sync', icon: 'fa-calendar-plus' },
+      { id: 'budget', label: 'Budget', icon: 'fa-dollar-sign' },
+      { id: 'ai', label: 'Ask Gemini', icon: 'fa-robot' },
+      { id: 'sync', label: 'GitHub Sync', icon: 'fa-brands fa-github' }
+    ];
+
+    const DEFAULT_STATE = {
+      activeTripId: 'trip_mexico',
+      activeTab: 'itinerary',
+      selectedCityId: 'city_cdmx',
+      offlineSimulated: false,
+      queuedMutations: 0,
+      github: { owner: '', repo: '', branch: 'main', path: 'trip-data.json', token: '', lastSync: '' },
+      trips: [
+        {
+          id: 'trip_mexico',
+          name: 'Mexico Adventure',
+          dates: 'Nov 12 – Nov 26 • Shared Trip',
+          currency: '$',
+          sectionDocs: {},
+          cities: [
+            {
+              id: 'city_cdmx',
+              name: 'Mexico City',
+              dates: 'Nov 12 – Nov 16 (4 nights)',
+              note: 'Use Uber or official Sitio taxis at night; drink bottled water. Book Frida Kahlo tickets early at https://www.museofridakahlo.org.mx',
+              docs: [],
+              activities: [
+                {
+                  id: 'act_frida',
+                  title: 'Museo Frida Kahlo (Casa Azul)',
+                  category: 'Museum',
+                  price: 32,
+                  visited: false,
+                  note: 'Coyoacán • Timed entry tickets online. Walk around Mercado de Coyoacán afterwards for tostadas.',
+                  photo: '',
+                  photoShape: 'wide',
+                  photoHeight: 240,
+                  docs: []
+                },
+                {
+                  id: 'act_teotihuacan',
+                  title: 'Teotihuacán Pyramids Sunrise',
+                  category: 'Sightseeing',
+                  price: 65,
+                  visited: false,
+                  note: 'Arrive at Gate 1 by 7:30 AM before tour buses. Bring sunscreen, hat & cash.',
+                  photo: '',
+                  photoShape: 'wide',
+                  photoHeight: 240,
+                  docs: []
+                }
+              ]
+            },
+            {
+              id: 'city_oaxaca',
+              name: 'Oaxaca de Juárez',
+              dates: 'Nov 16 – Nov 21 (5 nights)',
+              note: 'Try Mole Negro at Los Pacos and visit Hierve el Agua early morning.',
+              docs: [],
+              activities: [
+                {
+                  id: 'act_hierve',
+                  title: 'Hierve el Agua & Mezcal Palenque',
+                  category: 'Sightseeing',
+                  price: 48,
+                  visited: false,
+                  note: 'Bring swimwear and towel for the mineral pools.',
+                  photo: '',
+                  photoShape: 'wide',
+                  photoHeight: 240,
+                  docs: []
+                }
+              ]
+            },
+            {
+              id: 'city_tulum',
+              name: 'Mérida & Tulum',
+              dates: 'Nov 21 – Nov 26 (5 nights)',
+              note: 'Rent a car for cenotes around Valladolid and Chichén Itzá.',
+              docs: [],
+              activities: [
+                {
+                  id: 'act_cenote',
+                  title: 'Gran Cenote & Cobá Ruins',
+                  category: 'Sightseeing',
+                  price: 40,
+                  visited: false,
+                  note: 'Biodegradable sunscreen only; arrive at 8 AM for crystal-clear water.',
+                  photo: '',
+                  photoShape: 'wide',
+                  photoHeight: 240,
+                  docs: []
+                }
+              ]
+            }
+          ],
+          tickets: [
+            {
+              id: 'tkt_1',
+              type: 'Flight',
+              title: 'Roundtrip Flight to Mexico City (MEX)',
+              code: 'AMX-409',
+              date: 'Nov 12 • 10:30 AM',
+              price: 780,
+              file: null
+            },
+            {
+              id: 'tkt_2',
+              type: 'Lodging',
+              title: 'Casa Roma Boutique Hotel (CDMX)',
+              code: 'BOOK-8821',
+              date: 'Nov 12 – Nov 16 (Check-in 3 PM)',
+              price: 420,
+              file: null
+            }
+          ],
+          packing: [
+            { id: 'pk_1', text: 'Passports + printed flight & hotel confirmations', packed: true },
+            { id: 'pk_2', text: 'Universal power adapter & portable power bank', packed: false },
+            { id: 'pk_3', text: 'Reef-safe sunscreen & mosquito repellent', packed: false },
+            { id: 'pk_4', text: 'Offline Mexico City & Oaxaca maps downloaded', packed: false }
+          ],
+          guides: [
+            { id: 'gd_1', title: 'Emergency & Local Transit Tips', body: 'Emergency number in Mexico is 911. Use Uber in CDMX/Oaxaca; agree on taxi fare beforehand in Tulum.' },
+            { id: 'gd_2', title: 'Cash & Tipping Etiquette', body: 'Carry small MXN peso bills (20, 50, 100) for street tacos, markets, and cenote entry fees. Standard restaurant tip is 10–15%.' }
+          ]
+        }
+      ]
+    };
+
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(DEFAULT_STATE);
+        const parsed = JSON.parse(raw);
+        return { ...structuredClone(DEFAULT_STATE), ...parsed };
+      } catch (e) {
+        return structuredClone(DEFAULT_STATE);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        showToast('Storage nearly full — try compressing large PDFs');
+      }
+    }
+
+    function getActiveTrip() {
+      let trip = state.trips.find(t => t.id === state.activeTripId) || state.trips[0];
+      if (!trip) {
+        trip = structuredClone(DEFAULT_STATE.trips[0]);
+        state.trips = [trip];
+      }
+      trip.cities = Array.isArray(trip.cities) ? trip.cities : [];
+      trip.tickets = Array.isArray(trip.tickets) ? trip.tickets : [];
+      trip.packing = Array.isArray(trip.packing) ? trip.packing : [];
+      trip.guides = Array.isArray(trip.guides) ? trip.guides : [];
+      trip.sectionDocs = trip.sectionDocs || {};
+      trip.cities.forEach(c => {
+        c.docs = Array.isArray(c.docs) ? c.docs : [];
+        c.activities = Array.isArray(c.activities) ? c.activities : [];
+        c.activities.forEach(a => {
+          a.docs = Array.isArray(a.docs) ? a.docs : [];
+          a.photoShape = a.photoShape || 'wide';
+          a.photoHeight = a.photoHeight || 240;
+        });
+      });
+      return trip;
+    }
+
+    function getSelectedCity(trip) {
+      return trip.cities.find(c => c.id === state.selectedCityId) || trip.cities[0] || null;
+    }
+
+    function recordMutation(label) {
+      saveState();
+      if (state.offlineSimulated || !navigator.onLine) {
+        state.queuedMutations = (state.queuedMutations || 0) + 1;
+        saveState();
+        updateSyncBanner();
+      } else if (state.github?.token && state.github?.owner && state.github?.repo) {
+        pushToGitHub(true);
+      }
+      if (label) showToast(label);
+    }
+
+    function showToast(msg) {
+      const box = document.getElementById('toast-box');
+      const text = document.getElementById('toast-msg');
+      if (!box || !text) return;
+      text.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${msg}</span>`;
+      box.classList.remove('opacity-0');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => box.classList.add('opacity-0'), 2400);
+    }
+
+    // =========================================================================
+    // 2. SAFE TEXT LINKIFIER & FILE/IMAGE HELPERS
+    // =========================================================================
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function linkifyText(rawText) {
+      if (!rawText) return '';
+      const escaped = escapeHtml(rawText);
+      const urlRegex = /((https?:\/\/|www\.)[^\s<]+)/gi;
+      return escaped
+        .replace(urlRegex, (match) => {
+          const href = match.startsWith('http') ? match : `https://${match}`;
+          return `<a href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 underline font-semibold break-all">${match}</a>`;
+        })
+        .replace(/\n/g, '<br />');
+    }
+
+    function compressImageFile(file, maxDim = 1200, quality = 0.78) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function readDocumentFile(file) {
+      return new Promise((resolve, reject) => {
+        if (file.type.startsWith('image/')) {
+          compressImageFile(file, 1200, 0.8).then(dataUrl => {
+            resolve({
+              id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+              name: file.name,
+              type: 'image/jpeg',
+              size: Math.round((dataUrl.length * 3) / 4),
+              dataUrl
+            });
+          }).catch(reject);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          resolve({
+            id: 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            name: file.name,
+            type: file.type || 'application/octet-stream',
+            size: file.size,
+            dataUrl: e.target.result
+          });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // =========================================================================
+    // 3. RESIZABLE IMAGE FRAME COMPONENT (SHAPE + HEIGHT SLIDER)
+    // =========================================================================
+    function updatePhotoShape(cityId, actId, shape) {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      if (!act) return;
+      act.photoShape = shape;
+      recordMutation('Updated photo shape');
+      render();
+    }
+
+    function updatePhotoHeight(cityId, actId, newHeight) {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      if (!act) return;
+      act.photoHeight = parseInt(newHeight, 10) || 240;
+      const imgEl = document.getElementById(`photo-box-${actId}`);
+      if (imgEl) imgEl.style.height = `${act.photoHeight}px`;
+      saveState();
+    }
+
+    function removeActivityPhoto(cityId, actId) {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      if (!act) return;
+      act.photo = '';
+      recordMutation('Removed photo');
+      render();
+    }
+
+    async function uploadActivityPhoto(cityId, actId, input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const dataUrl = await compressImageFile(file);
+        const trip = getActiveTrip();
+        const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+        if (act) {
+          act.photo = dataUrl;
+          act.photoHeight = act.photoHeight || 240;
+          recordMutation('Photo added');
+          render();
+        }
+      } catch (e) {
+        showToast('Could not read image');
+      }
+    }
+
+    function renderResizablePhoto(act, cityId) {
+      if (!act.photo) return '';
+      const shape = act.photoShape || 'wide';
+      const height = act.photoHeight || 240;
+      const isFit = shape === 'fit';
+      const isSquare = shape === 'square';
+      const shapes = [
+        { id: 'wide', label: 'Wide' },
+        { id: 'square', label: 'Square' },
+        { id: 'tall', label: 'Tall' },
+        { id: 'fit', label: 'Fit' }
+      ];
+      return `
+        <div class="relative w-full bg-slate-900/5 border-b border-slate-100 overflow-hidden">
+          <div id="photo-box-${act.id}" style="height: ${height}px;" class="w-full flex items-center justify-center overflow-hidden transition-all">
+            <img src="${act.photo}" alt="${escapeHtml(act.title)}" class="${isFit ? 'max-w-full max-h-full object-contain' : isSquare ? 'h-full aspect-square object-cover rounded-xl' : 'w-full h-full object-cover'}" />
+          </div>
+          <!-- Resize Slider & Shape Bar -->
+          <div class="bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-1">
+              ${shapes.map(s => `
+                <button type="button" onclick="updatePhotoShape('${cityId}', '${act.id}', '${s.id}')" class="px-2 py-0.5 rounded-md text-[10px] font-bold transition ${
+                  shape === s.id ? 'bg-rose-500 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }">${s.label}</button>
+              `).join('')}
+            </div>
+            <div class="flex items-center gap-2 flex-1 min-w-[130px] max-w-[200px]">
+              <i class="fa-solid fa-up-down text-[10px] text-slate-300" title="Resize image height"></i>
+              <input type="range" min="140" max="520" value="${height}" oninput="updatePhotoHeight('${cityId}', '${act.id}', this.value)" onchange="recordMutation('Resized photo')" class="w-full accent-rose-500 h-1.5 bg-white/20 rounded-lg cursor-pointer" />
+            </div>
+            <button type="button" onclick="removeActivityPhoto('${cityId}', '${act.id}')" title="Delete photo" class="text-white/75 hover:text-rose-400 text-xs px-1.5">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 4. UNIVERSAL PER-SECTION DOCUMENT UPLOAD & ATTACHMENT STRIP
+    // =========================================================================
+    function getDocListByTarget(trip, targetType, targetId, subId) {
+      if (targetType === 'city') {
+        const c = trip.cities.find(x => x.id === targetId);
+        return c ? c.docs : null;
+      }
+      if (targetType === 'activity') {
+        const a = trip.cities.find(x => x.id === targetId)?.activities.find(y => y.id === subId);
+        return a ? a.docs : null;
+      }
+      if (targetType === 'section') {
+        trip.sectionDocs[targetId] = trip.sectionDocs[targetId] || [];
+        return trip.sectionDocs[targetId];
+      }
+      return null;
+    }
+
+    async function handleSectionDocUpload(targetType, targetId, subId, input) {
+      const files = Array.from(input.files || []);
+      if (!files.length) return;
+      const trip = getActiveTrip();
+      const list = getDocListByTarget(trip, targetType, targetId, subId);
+      if (!list) return;
+      for (const f of files) {
+        const docObj = await readDocumentFile(f);
+        list.push(docObj);
+      }
+      input.value = '';
+      recordMutation(`Attached ${files.length} document(s)`);
+      render();
+    }
+
+    function removeAttachedDoc(targetType, targetId, subId, docId) {
+      const trip = getActiveTrip();
+      const list = getDocListByTarget(trip, targetType, targetId, subId);
+      if (!list) return;
+      const idx = list.findIndex(d => d.id === docId);
+      if (idx !== -1) {
+        list.splice(idx, 1);
+        recordMutation('Removed attachment');
+        render();
+      }
+    }
+
+    function openDocumentViewer(targetType, targetId, subId, docId) {
+      const trip = getActiveTrip();
+      const list = getDocListByTarget(trip, targetType, targetId, subId) || [];
+      const doc = list.find(d => d.id === docId);
+      if (!doc) return;
+      const titleEl = document.getElementById('doc-viewer-title');
+      const bodyEl = document.getElementById('doc-viewer-body');
+      titleEl.textContent = doc.name;
+      const isImg = doc.type.startsWith('image/');
+      const isPdf = doc.type === 'application/pdf' || doc.name.toLowerCase().endsWith('.pdf');
+      bodyEl.innerHTML = `
+        ${isImg ? `<img src="${doc.dataUrl}" alt="${escapeHtml(doc.name)}" class="w-full max-h-[60vh] object-contain rounded-2xl bg-slate-100" />` : ''}
+        ${isPdf ? `<iframe src="${doc.dataUrl}" class="w-full h-[60vh] rounded-2xl border border-slate-200"></iframe>` : ''}
+        ${!isImg && !isPdf ? `<div class="p-6 text-center bg-slate-50 rounded-2xl text-xs text-slate-600"><i class="fa-solid fa-file-lines text-3xl text-slate-400 mb-2 block"></i>Ready to download: <strong>${escapeHtml(doc.name)}</strong></div>` : ''}
+        <a href="${doc.dataUrl}" download="${escapeHtml(doc.name)}" class="w-full py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-2">
+          <i class="fa-solid fa-download"></i> Download File (${Math.max(1, Math.round((doc.size || 1024) / 1024))} KB)
+        </a>
+      `;
+      document.getElementById('doc-viewer-modal').classList.remove('hidden');
+    }
+
+    function renderAttachmentStrip(docs, targetType, targetId, subId = '', label = 'Section Documents') {
+      const inputId = `file-up-${targetType}-${targetId}-${subId || 'main'}`;
+      return `
+        <div class="rounded-2xl bg-slate-50 border border-slate-200/90 p-2.5 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+            <span class="text-[11px] font-bold text-slate-500 shrink-0"><i class="fa-solid fa-paperclip mr-1 text-slate-400"></i>${label}:</span>
+            ${docs.length === 0 ? `<span class="text-[11px] text-slate-400">None attached</span>` : docs.map(d => `
+              <div class="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs">
+                <button type="button" onclick="openDocumentViewer('${targetType}', '${targetId}', '${subId}', '${d.id}')" class="hover:text-blue-600 truncate max-w-[140px] flex items-center gap-1">
+                  <i class="fa-solid ${d.type.startsWith('image/') ? 'fa-image text-rose-500' : 'fa-file-pdf text-blue-500'}"></i>
+                  <span class="truncate">${escapeHtml(d.name)}</span>
+                </button>
+                <button type="button" onclick="removeAttachedDoc('${targetType}', '${targetId}', '${subId}', '${d.id}')" class="text-slate-400 hover:text-rose-500 ml-0.5">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            `).join('')}
+          </div>
+          <label for="${inputId}" class="shrink-0 px-2.5 py-1.5 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-blue-600 text-[11px] font-extrabold cursor-pointer transition">
+            <i class="fa-solid fa-upload mr-1"></i>Upload Doc
+          </label>
+          <input id="${inputId}" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt" class="hidden" onchange="handleSectionDocUpload('${targetType}', '${targetId}', '${subId}', this)" />
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // 5. NAVIGATION, INLINE EDITORS & MUTATIONS
+    // =========================================================================
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      saveState();
+      render();
+    }
+
+    function switchTrip(tripId) {
+      state.activeTripId = tripId;
+      const trip = getActiveTrip();
+      state.selectedCityId = trip.cities[0]?.id || '';
+      saveState();
+      render();
+    }
+
+    function selectCity(cityId) {
+      state.selectedCityId = cityId;
+      saveState();
+      render();
+    }
+
+    function toggleVisited(cityId, actId) {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      if (!act) return;
+      act.visited = !act.visited;
+      recordMutation(act.visited ? 'Marked as visited!' : 'Marked unvisited');
+      render();
+    }
+
+    function startInlinePriceEdit(cityId, actId, el) {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      if (!act) return;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.01';
+      input.min = '0';
+      input.value = act.price || '';
+      input.placeholder = '0';
+      input.className = 'w-20 px-2 py-1 text-xs font-extrabold bg-white border-2 border-rose-500 rounded-xl text-slate-900 outline-none';
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        act.price = Math.max(0, parseFloat(input.value) || 0);
+        recordMutation(`Updated price (${trip.currency}${act.price})`);
+        render();
+      };
+      input.addEventListener('blur', commit);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
+    }
+
+    function startInlineNoteEdit(cityId, actId, prefix = 'note-box') {
+      const trip = getActiveTrip();
+      const act = trip.cities.find(c => c.id === cityId)?.activities.find(a => a.id === actId);
+      const el = document.getElementById(`${prefix}-${actId}`);
+      if (!act || !el) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'mt-2 space-y-1.5';
+      wrapper.innerHTML = `
+        <textarea id="ta-${prefix}-${actId}" rows="3" placeholder="Write notes, tips, or clickable URLs (https://...)..." class="w-full bg-white border-2 border-amber-400 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none">${escapeHtml(act.note || '')}</textarea>
+        <div class="flex justify-end gap-1.5">
+          <button type="button" onclick="render()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600">Cancel</button>
+          <button type="button" id="save-${prefix}-${actId}" class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-slate-900 text-white">Save</button>
+        </div>
+      `;
+      el.replaceWith(wrapper);
+      const ta = document.getElementById(`ta-${prefix}-${actId}`);
+      ta.focus();
+      document.getElementById(`save-${prefix}-${actId}`).onclick = () => {
+        act.note = ta.value.trim();
+        recordMutation('Saved notes & links');
+        render();
+      };
+    }
+
+    function startCityNoteEdit(cityId, prefix = 'city-note') {
+      const trip = getActiveTrip();
+      const city = trip.cities.find(c => c.id === cityId);
+      const el = document.getElementById(`${prefix}-${cityId}`);
+      if (!city || !el) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'space-y-1.5';
+      wrapper.innerHTML = `
+        <textarea id="ta-${prefix}-${cityId}" rows="2" placeholder="City notes, tips, or links..." class="w-full bg-white border-2 border-rose-400 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none">${escapeHtml(city.note || '')}</textarea>
+        <div class="flex justify-end gap-1.5">
+          <button type="button" onclick="render()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-600">Cancel</button>
+          <button type="button" id="save-${prefix}-${cityId}" class="px-3 py-1 rounded-lg text-[11px] font-extrabold bg-slate-900 text-white">Save City Note</button>
+        </div>
+      `;
+      el.replaceWith(wrapper);
+      const ta = document.getElementById(`ta-${prefix}-${cityId}`);
+      ta.focus();
+      document.getElementById(`save-${prefix}-${cityId}`).onclick = () => {
+        city.note = ta.value.trim();
+        recordMutation('Updated city note');
+        render();
+      };
+    }
+
+    function editTripDates() {
+      const trip = getActiveTrip();
+      const badge = document.getElementById('trip-dates-badge');
+      if (!badge) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'inline-flex items-center gap-1.5 bg-white rounded-full px-2.5 py-1 shadow-sm';
+      wrapper.innerHTML = `
+        <input id="edit-trip-dates-input" type="text" value="${escapeHtml(trip.dates)}" class="text-xs font-bold text-slate-900 bg-transparent outline-none w-44" />
+        <button type="button" id="save-trip-dates-btn" class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-extrabold">Save</button>
+      `;
+      badge.replaceWith(wrapper);
+      const inp = document.getElementById('edit-trip-dates-input');
+      inp.focus();
+      inp.select();
+      const commit = () => {
+        if (inp.value.trim()) {
+          trip.dates = inp.value.trim();
+          recordMutation('Updated trip dates');
+        }
+        render();
+      };
+      document.getElementById('save-trip-dates-btn').onclick = commit;
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
+    }
+
+    function startCityDatesEdit(cityId, prefix = 'city-dates') {
+      const trip = getActiveTrip();
+      const city = trip.cities.find(c => c.id === cityId);
+      const el = document.getElementById(`${prefix}-${cityId}`);
+      if (!city || !el) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'inline-flex items-center gap-1.5 mt-1';
+      wrapper.innerHTML = `
+        <input id="inp-${prefix}-${cityId}" type="text" value="${escapeHtml(city.dates)}" class="bg-slate-100 border border-rose-400 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-900 outline-none w-48" />
+        <button type="button" id="save-${prefix}-${cityId}" class="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-extrabold">Save</button>
+      `;
+      el.replaceWith(wrapper);
+      const inp = document.getElementById(`inp-${prefix}-${cityId}`);
+      inp.focus();
+      inp.select();
+      const commit = () => {
+        if (inp.value.trim()) {
+          city.dates = inp.value.trim();
+          recordMutation(`Updated ${city.name} dates`);
+        }
+        render();
+      };
+      document.getElementById(`save-${prefix}-${cityId}`).onclick = commit;
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); });
+    }
+
+    function toggleOfflineSimulation() {
+      state.offlineSimulated = !state.offlineSimulated;
+      if (!state.offlineSimulated && state.queuedMutations > 0) {
+        showToast(`Synced ${state.queuedMutations} offline update(s)!`);
+        state.queuedMutations = 0;
+      }
+      saveState();
+      updateSyncBanner();
+    }
+
+    function updateSyncBanner() {
+      const isOffline = state.offlineSimulated || !navigator.onLine;
+      const banner = document.getElementById('sync-banner');
+      const dot = document.getElementById('sync-dot');
+      const statusText = document.getElementById('sync-status-text');
+      const toggleBtn = document.getElementById('offline-toggle-btn');
+      const badge = document.getElementById('queued-badge');
+
+      if (isOffline) {
+        banner.className = 'bg-amber-600 text-white text-xs font-semibold px-3 md:px-6 py-2 flex items-center justify-between transition-colors sticky top-0 z-40';
+        dot.className = 'w-2 h-2 rounded-full bg-amber-200 shrink-0';
+        statusText.textContent = 'Offline Mode • Changes saved locally on device';
+        toggleBtn.textContent = 'Go Online';
+      } else {
+        banner.className = 'bg-emerald-600 text-white text-xs font-semibold px-3 md:px-6 py-2 flex items-center justify-between transition-colors sticky top-0 z-40';
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-200 animate-pulse shrink-0';
+        statusText.textContent = 'Offline Ready • Tap GitHub Sync to connect repo';
+        toggleBtn.textContent = 'Test Airplane Mode';
+      }
+
+      if (state.queuedMutations > 0) {
+        badge.textContent = `${state.queuedMutations} pending sync`;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 6. MODALS & FORM SUBMISSIONS
+    // =========================================================================
+    function openAddModal(defaultType = 'place', preselectCityId = null) {
+      const trip = getActiveTrip();
+      const sel = document.getElementById('place-city-select');
+      sel.innerHTML = trip.cities.map(c => `<option value="${c.id}" ${(preselectCityId || state.selectedCityId) === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+      setModalType(defaultType);
+      document.getElementById('add-modal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('add-modal').classList.add('hidden');
+    }
+
+    function setModalType(type) {
+      ['place', 'city', 'ticket'].forEach(t => {
+        const btn = document.getElementById(`type-btn-${t}`);
+        const form = document.getElementById(`form-${t}`);
+        if (t === type) {
+          btn.className = 'py-2 rounded-xl bg-white text-slate-900 shadow-xs';
+          form.classList.remove('hidden');
+        } else {
+          btn.className = 'py-2 rounded-xl text-slate-600';
+          form.classList.add('hidden');
+        }
+      });
+    }
+
+    async function submitNewPlace(e) {
+      e.preventDefault();
+      const trip = getActiveTrip();
+      const cityId = document.getElementById('place-city-select').value;
+      const city = trip.cities.find(c => c.id === cityId);
+      if (!city) return;
+
+      const photoFile = document.getElementById('place-photo-input').files?.[0];
+      const docFile = document.getElementById('place-doc-input').files?.[0];
+      const photo = photoFile ? await compressImageFile(photoFile) : '';
+      const docs = docFile ? [await readDocumentFile(docFile)] : [];
+
+      city.activities.push({
+        id: 'act_' + Date.now(),
+        title: document.getElementById('place-title').value.trim(),
+        category: document.getElementById('place-category').value,
+        price: Math.max(0, parseFloat(document.getElementById('place-price').value) || 0),
+        visited: false,
+        note: document.getElementById('place-note').value.trim(),
+        photo,
+        photoShape: document.getElementById('place-photo-shape').value || 'wide',
+        photoHeight: 240,
+        docs
+      });
+
+      e.target.reset();
+      document.getElementById('place-photo-label').textContent = 'Attach Photo';
+      document.getElementById('place-doc-label').textContent = 'Attach PDF / Doc';
+      closeAddModal();
+      state.selectedCityId = cityId;
+      recordMutation('Added place to trip');
+      render();
+    }
+
+    function submitNewCity(e) {
+      e.preventDefault();
+      const trip = getActiveTrip();
+      const newCity = {
+        id: 'city_' + Date.now(),
+        name: document.getElementById('city-name').value.trim(),
+        dates: document.getElementById('city-dates').value.trim() || 'Flexible dates',
+        note: document.getElementById('city-note').value.trim(),
+        docs: [],
+        activities: []
+      };
+      trip.cities.push(newCity);
+      state.selectedCityId = newCity.id;
+      e.target.reset();
+      closeAddModal();
+      recordMutation(`Added city: ${newCity.name}`);
+      render();
+    }
+
+    async function submitNewTicket(e) {
+      e.preventDefault();
+      const trip = getActiveTrip();
+      const fileObj = document.getElementById('ticket-file-input').files?.[0];
+      const attached = fileObj ? await readDocumentFile(fileObj) : null;
+      trip.tickets.push({
+        id: 'tkt_' + Date.now(),
+        type: document.getElementById('ticket-type').value,
+        title: document.getElementById('ticket-title').value.trim(),
+        code: document.getElementById('ticket-code').value.trim() || 'CONFIRMED',
+        date: document.getElementById('ticket-date').value.trim() || 'Upcoming',
+        price: Math.max(0, parseFloat(document.getElementById('ticket-price').value) || 0),
+        file: attached
+      });
+      e.target.reset();
+      document.getElementById('ticket-file-label').textContent = 'Attach Boarding Pass / Voucher (PDF or Image)';
+      closeAddModal();
+      recordMutation('Saved reservation & document');
+      render();
+    }
+
+    function openNewTripModal() {
+      document.getElementById('new-trip-modal').classList.remove('hidden');
+    }
+
+    function submitNewTrip(e) {
+      e.preventDefault();
+      const cityId = 'city_' + Date.now();
+      const newTrip = {
+        id: 'trip_' + Date.now(),
+        name: document.getElementById('new-trip-name').value.trim(),
+        dates: document.getElementById('new-trip-dates').value.trim() || 'Upcoming Trip',
+        currency: document.getElementById('new-trip-currency').value.trim() || '€',
+        sectionDocs: {},
+        cities: [{
+          id: cityId,
+          name: document.getElementById('new-trip-city').value.trim(),
+          dates: 'Day 1+',
+          note: '',
+          docs: [],
+          activities: []
+        }],
+        tickets: [],
+        packing: [{ id: 'pk_' + Date.now(), text: 'Passports & travel insurance', packed: false }],
+        guides: []
+      };
+      state.trips.push(newTrip);
+      state.activeTripId = newTrip.id;
+      state.selectedCityId = cityId;
+      e.target.reset();
+      document.getElementById('new-trip-modal').classList.add('hidden');
+      recordMutation(`Created trip: ${newTrip.name}`);
+      render();
+    }
+
+    function openInstallGuide() {
+      document.getElementById('install-modal').classList.remove('hidden');
+    }
+
+    // =========================================================================
+    // 7. VIEW RENDERERS (PC + MOBILE RESPONSIVE)
+    // =========================================================================
+    function renderItineraryView(trip) {
+      const selectedCity = getSelectedCity(trip);
+      const cur = trip.currency || '$';
+      return `
+        <div class="space-y-4 animate-fade">
+          <!-- City Selector Pills -->
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            ${trip.cities.map(c => `
+              <button type="button" onclick="selectCity('${c.id}')" class="shrink-0 px-4 py-2 rounded-2xl text-xs font-extrabold transition ${
+                selectedCity?.id === c.id ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+              }">
+                ${escapeHtml(c.name)} <span class="opacity-65 ml-1">(${c.activities.length})</span>
+              </button>
+            `).join('')}
+            <button type="button" onclick="openAddModal('city')" class="shrink-0 px-3.5 py-2 rounded-2xl border border-dashed border-slate-300 hover:border-rose-400 text-xs font-bold text-slate-600">
+              + City
+            </button>
+          </div>
+
+          ${!selectedCity ? `<div class="bg-white rounded-3xl p-8 text-center text-xs text-slate-500">Tap "+ City" to add your first destination.</div>` : `
+            <!-- City Banner + City Document Upload -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-4 md:p-5 space-y-3 shadow-2xs">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 class="text-lg md:text-xl font-extrabold text-slate-900">${escapeHtml(selectedCity.name)}</h2>
+                  <div id="city-dates-${selectedCity.id}" class="flex items-center gap-2 mt-0.5">
+                    <p class="text-xs text-slate-500 font-medium">${escapeHtml(selectedCity.dates)}</p>
+                    <button type="button" onclick="startCityDatesEdit('${selectedCity.id}')" class="text-[11px] font-bold text-rose-600 hover:underline">
+                      <i class="fa-regular fa-calendar mr-0.5"></i>Change Dates
+                    </button>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="startCityNoteEdit('${selectedCity.id}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+                    <i class="fa-solid fa-pen mr-1"></i>Edit City Note
+                  </button>
+                  <button type="button" onclick="openAddModal('place', '${selectedCity.id}')" class="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold">
+                    + Add Stop
+                  </button>
+                </div>
+              </div>
+
+              <div id="city-note-${selectedCity.id}" class="rounded-2xl bg-rose-50/70 border-l-4 border-rose-500 px-3.5 py-2.5 text-xs text-slate-700">
+                ${selectedCity.note ? linkifyText(selectedCity.note) : '<span class="text-slate-400">No city notes yet — tap Edit City Note to add local tips or links.</span>'}
+              </div>
+
+              ${renderAttachmentStrip(selectedCity.docs, 'city', selectedCity.id, '', `${selectedCity.name} Docs`)}
+            </div>
+
+            <!-- Responsive Grid of Planned Places (1 col on Mobile, 2 cols on PC/Tablet) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${selectedCity.activities.length === 0 ? `
+                <div class="md:col-span-2 bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center space-y-2">
+                  <p class="text-xs font-bold text-slate-500">No places added to ${escapeHtml(selectedCity.name)} yet.</p>
+                  <button type="button" onclick="openAddModal('place', '${selectedCity.id}')" class="px-4 py-2 rounded-xl bg-rose-500 text-white text-xs font-extrabold">+ Add First Place</button>
+                </div>
+              ` : selectedCity.activities.map(act => `
+                <div class="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xs flex flex-col justify-between ${act.visited ? 'ring-1 ring-emerald-300' : ''}">
+                  <div>
+                    ${renderResizablePhoto(act, selectedCity.id)}
+                    <div class="p-4 space-y-3">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-start gap-2.5 min-w-0">
+                          <button type="button" onclick="toggleVisited('${selectedCity.id}', '${act.id}')" class="mt-0.5 w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition ${
+                            act.visited ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-rose-500'
+                          }">
+                            ${act.visited ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
+                          </button>
+                          <div class="min-w-0">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${escapeHtml(act.category)}</span>
+                            <h3 class="text-sm md:text-base font-extrabold text-slate-900 mt-1">${escapeHtml(act.title)}</h3>
+                          </div>
+                        </div>
+
+                        <button type="button" onclick="startInlinePriceEdit('${selectedCity.id}', '${act.id}', this)" title="Tap to edit price" class="shrink-0 px-2.5 py-1 rounded-xl text-xs font-extrabold ${
+                          act.price > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                        }">
+                          ${act.price > 0 ? `${cur}${act.price}` : `+ ${cur} Price`}
+                        </button>
+                      </div>
+
+                      <!-- Notes & Tips Box -->
+                      <div id="note-box-${act.id}" class="rounded-2xl bg-amber-50/70 border border-amber-200/80 px-3 py-2.5 text-xs text-slate-700">
+                        <div class="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-1">
+                          <span><i class="fa-solid fa-lightbulb mr-1"></i>Notes, Tips & Links</span>
+                          <button type="button" onclick="startInlineNoteEdit('${selectedCity.id}', '${act.id}')" class="px-2 py-0.5 rounded-md bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold">
+                            <i class="fa-solid fa-pen mr-1"></i>Edit
+                          </button>
+                        </div>
+                        <p class="leading-relaxed">${act.note ? linkifyText(act.note) : '<span class="text-slate-400">Tap Edit to add notes or clickable links.</span>'}</p>
+                      </div>
+
+                      <!-- Per-Place Document Attachment Strip -->
+                      ${renderAttachmentStrip(act.docs, 'activity', selectedCity.id, act.id, 'Docs')}
+                    </div>
+                  </div>
+
+                  <!-- Card Footer Actions -->
+                  <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
+                    <label class="text-rose-600 hover:text-rose-700 cursor-pointer flex items-center gap-1.5">
+                      <i class="fa-solid fa-camera"></i>
+                      <span>${act.photo ? 'Replace Photo' : 'Add Photo'}</span>
+                      <input type="file" accept="image/*" class="hidden" onchange="uploadActivityPhoto('${selectedCity.id}', '${act.id}', this)" />
+                    </label>
+                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.title + ' ' + selectedCity.name)}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      <i class="fa-solid fa-map-location-dot"></i> Maps
+                    </a>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function renderStoryBlogView(trip) {
+      const cur = trip.currency || '$';
+      const storyDocs = trip.sectionDocs.story || [];
+      return `
+        <div class="space-y-5 animate-fade">
+          <!-- Blog Header & One-Click Export -->
+          <div class="bg-slate-900 text-white rounded-3xl p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-md">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">Trip Storyboard & Journal</span>
+              <h2 class="text-xl md:text-2xl font-extrabold mt-0.5">${escapeHtml(trip.name)}</h2>
+              <p class="text-xs text-slate-300 mt-0.5">Resize photos, attach trip documents, and export your completed journey as a standalone HTML blog.</p>
+            </div>
+            <button type="button" onclick="exportTravelBlog()" class="px-4 py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold shadow-sm flex items-center gap-2">
+              <i class="fa-solid fa-file-export"></i> Export Blog (.HTML)
+            </button>
+          </div>
+
+          <!-- Storyboard General Documents Vault -->
+          ${renderAttachmentStrip(storyDocs, 'section', 'story', '', 'Story & Trip Documents')}
+
+          <!-- City Chapters -->
+          ${trip.cities.map(city => `
+            <section class="space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <div>
+                  <h3 class="text-lg md:text-xl font-extrabold text-slate-900">${escapeHtml(city.name)}</h3>
+                  <p class="text-xs text-slate-500">${escapeHtml(city.dates)}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" onclick="startCityNoteEdit('${city.id}', 'blog-city-note')" class="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-700">
+                    <i class="fa-solid fa-pen mr-1"></i>Edit Chapter Intro
+                  </button>
+                  <button type="button" onclick="openAddModal('place', '${city.id}')" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold">
+                    + Add Story Stop
+                  </button>
+                </div>
+              </div>
+
+              <div id="blog-city-note-${city.id}" class="rounded-2xl bg-rose-50 border-l-4 border-rose-500 p-3.5 text-xs text-slate-800">
+                <span class="font-extrabold text-rose-700 mr-1">City Note:</span>
+                ${city.note ? linkifyText(city.note) : '<span class="text-slate-400">No chapter intro yet.</span>'}
+              </div>
+
+              ${renderAttachmentStrip(city.docs, 'city', city.id, '', `${city.name} Files`)}
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${city.activities.map(act => `
+                  <article class="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      ${renderResizablePhoto(act, city.id)}
+                      <div class="p-4 space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-[11px] font-bold text-slate-500">${escapeHtml(act.category)}</span>
+                          <div class="flex items-center gap-2">
+                            <span class="text-xs font-extrabold text-emerald-600">${act.price > 0 ? `${cur}${act.price}` : ''}</span>
+                            <!-- Dedicated Edit Button so clicking post body/links does not trigger edit mode -->
+                            <button type="button" onclick="startInlineNoteEdit('${city.id}', '${act.id}', 'blog-note')" class="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 text-[11px] font-extrabold transition">
+                              <i class="fa-solid fa-pen mr-1"></i>Edit
+                            </button>
+                          </div>
+                        </div>
+                        <h4 class="text-base font-extrabold text-slate-900">${escapeHtml(act.title)}</h4>
+
+                        <div id="blog-note-${act.id}" class="rounded-2xl bg-slate-50 border border-slate-200/80 p-3 text-xs text-slate-700 leading-relaxed">
+                          ${act.note ? linkifyText(act.note) : '<span class="text-slate-400 italic">No story text yet — tap the Edit button above to write your story or add clickable links.</span>'}
+                        </div>
+
+                        ${renderAttachmentStrip(act.docs, 'activity', city.id, act.id, 'Stop Docs')}
+                      </div>
+                    </div>
+                    <div class="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-bold">
+                      <label class="text-rose-600 hover:text-rose-700 cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-camera"></i>
+                        <span>${act.photo ? 'Change Photo' : 'Add Photo'}</span>
+                        <input type="file" accept="image/*" class="hidden" onchange="uploadActivityPhoto('${city.id}', '${act.id}', this)" />
+                      </label>
+                      <span class="text-[11px] text-slate-400">${act.visited ? '✓ Visited' : 'Planned'}</span>
+                    </div>
+                  </article>
+                `).join('')}
+              </div>
+            </section>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderTicketsSection(trip, filterType = null, sectionKey = 'reservations', title = 'Reservations & Tickets') {
+      const cur = trip.currency || '$';
+      const items = filterType ? trip.tickets.filter(t => t.type.toLowerCase().includes(filterType)) : trip.tickets;
+      const docs = trip.sectionDocs[sectionKey] || [];
+      return `
+        <div class="space-y-4 animate-fade">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-lg font-extrabold text-slate-900">${title}</h2>
+            <button type="button" onclick="openAddModal('ticket')" class="px-3.5 py-2 rounded-2xl bg-rose-500 text-white text-xs font-extrabold">
+              + Add Ticket / Voucher
+            </button>
+          </div>
+          ${renderAttachmentStrip(docs, 'section', sectionKey, '', `${title} Folder`)}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${items.length === 0 ? `<div class="md:col-span-2 bg-white rounded-3xl border border-slate-200 p-8 text-center text-xs text-slate-500">No entries yet. Tap "+ Add Ticket / Voucher" or upload files above.</div>` : items.map(t => `
+              <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-2.5 shadow-2xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700">${escapeHtml(t.type)}</span>
+                  <span class="text-xs font-extrabold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded-lg">${escapeHtml(t.code)}</span>
+                </div>
+                <h3 class="text-sm font-extrabold text-slate-900">${escapeHtml(t.title)}</h3>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                  <span><i class="fa-regular fa-clock mr-1"></i>${escapeHtml(t.date)}</span>
+                  <span class="font-extrabold text-emerald-600">${t.price > 0 ? `${cur}${t.price}` : ''}</span>
+                </div>
+                ${t.file ? `
+                  <button type="button" onclick="openTicketDirectFile('${t.id}')" class="w-full py-2 px-3 rounded-xl bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-lines"></i> View Attached Pass (${escapeHtml(t.file.name)})
+                  </button>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function openTicketDirectFile(ticketId) {
+      const trip = getActiveTrip();
+      const t = trip.tickets.find(x => x.id === ticketId);
+      if (!t || !t.file) return;
+      document.getElementById('doc-viewer-title').textContent = t.file.name;
+      const isImg = t.file.type.startsWith('image/');
+      document.getElementById('doc-viewer-body').innerHTML = `
+        ${isImg ? `<img src="${t.file.dataUrl}" class="w-full max-h-[60vh] object-contain rounded-2xl" />` : `<iframe src="${t.file.dataUrl}" class="w-full h-[60vh] rounded-2xl border"></iframe>`}
+        <a href="${t.file.dataUrl}" download="${escapeHtml(t.file.name)}" class="w-full py-2.5 rounded-2xl bg-slate-900 text-white text-xs font-extrabold flex items-center justify-center gap-2">
+          <i class="fa-solid fa-download"></i> Download Pass
+        </a>
+      `;
+      document.getElementById('doc-viewer-modal').classList.remove('hidden');
+    }
+
+    function renderPackingView(trip) {
+      const docs = trip.sectionDocs.packing || [];
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">Shared Packing Checklist</h2>
+          ${renderAttachmentStrip(docs, 'section', 'packing', '', 'Packing & Gear Lists')}
+          <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-3">
+            <form onsubmit="addPackingItem(event)" class="flex gap-2">
+              <input id="new-pack-input" type="text" required placeholder="Add item (e.g., Rain jacket, Peso cash)..." class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+              <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold">Add</button>
+            </form>
+            <div class="divide-y divide-slate-100">
+              ${trip.packing.map(item => `
+                <label class="flex items-center justify-between py-2.5 cursor-pointer">
+                  <div class="flex items-center gap-3">
+                    <input type="checkbox" ${item.packed ? 'checked' : ''} onchange="togglePackItem('${item.id}')" class="w-4 h-4 accent-emerald-600 rounded" />
+                    <span class="text-xs font-semibold ${item.packed ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(item.text)}</span>
+                  </div>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function addPackingItem(e) {
+      e.preventDefault();
+      const input = document.getElementById('new-pack-input');
+      if (!input.value.trim()) return;
+      getActiveTrip().packing.push({ id: 'pk_' + Date.now(), text: input.value.trim(), packed: false });
+      input.value = '';
+      recordMutation('Added packing item');
+      render();
+    }
+
+    function togglePackItem(id) {
+      const item = getActiveTrip().packing.find(p => p.id === id);
+      if (item) {
+        item.packed = !item.packed;
+        recordMutation('Updated checklist');
+        render();
+      }
+    }
+
+    function renderRouteMapsView(trip) {
+      const city = getSelectedCity(trip);
+      const docs = trip.sectionDocs.route || [];
+      const activities = city?.activities || [];
+      const activePinQuery = state.activeMapQuery || (activities[0] ? `${activities[0].title}, ${city.name}` : (city?.name || 'Mexico City'));
+      const stops = city ? [city.name, ...activities.map(a => `${a.title}, ${city.name}`)] : ['Mexico City'];
+      const mapsDirUrl = `https://www.google.com/maps/dir/${stops.map(s => encodeURIComponent(s)).join('/')}`;
+
+      return `
+        <div class="space-y-4 animate-fade">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 class="text-lg font-extrabold text-slate-900">Route Optimization & Planned Places Map</h2>
+              <p class="text-xs text-slate-500">Tap any planned stop below to highlight it on the map or launch turn-by-turn directions.</p>
+            </div>
+            <a href="${mapsDirUrl}" target="_blank" rel="noopener noreferrer" class="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-2">
+              <i class="fa-solid fa-diamond-turn-right"></i> Open Full Multi-Stop Route
+            </a>
+          </div>
+
+          <!-- City Selector -->
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            ${trip.cities.map(c => `
+              <button type="button" onclick="state.activeMapQuery=''; selectCity('${c.id}')" class="shrink-0 px-3.5 py-1.5 rounded-2xl text-xs font-extrabold transition ${
+                city?.id === c.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-700'
+              }">
+                ${escapeHtml(c.name)} (${c.activities.length})
+              </button>
+            `).join('')}
+          </div>
+
+          ${renderAttachmentStrip(docs, 'section', 'route', '', 'Offline Map Screenshots & Route Docs')}
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Planned Places Pin List -->
+            <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Planned Stops in ${escapeHtml(city?.name || '')}</h3>
+                <button type="button" onclick="focusMapPlace('${escapeHtml(city?.name || 'Mexico City')}')" class="text-[11px] font-bold text-blue-600 hover:underline">Show All City</button>
+              </div>
+              ${activities.length === 0 ? `<p class="text-xs text-slate-400 py-4">No stops added yet for this city.</p>` : activities.map((act, idx) => {
+                const q = `${act.title}, ${city.name}`;
+                const isSelected = activePinQuery === q;
+                return `
+                  <button type="button" onclick="focusMapPlace('${escapeHtml(q)}')" class="w-full text-left p-2.5 rounded-2xl border transition flex items-start gap-2.5 ${
+                    isSelected ? 'bg-rose-50 border-rose-400' : 'bg-slate-50 hover:bg-slate-100 border-slate-200/70'
+                  }">
+                    <span class="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">${idx + 1}</span>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(act.title)}</div>
+                      <div class="text-[11px] text-slate-500 truncate">${escapeHtml(act.category)}</div>
+                    </div>
+                    <i class="fa-solid fa-location-dot text-rose-500 mt-1"></i>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+
+            <!-- Interactive Map Frame -->
+            <div class="lg:col-span-2 bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-2xs flex flex-col">
+              <div class="px-4 py-2.5 bg-slate-900 text-white text-xs font-bold flex items-center justify-between">
+                <span><i class="fa-solid fa-map-pin text-rose-400 mr-1.5"></i>Pinned: ${escapeHtml(activePinQuery)}</span>
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activePinQuery)}" target="_blank" rel="noopener noreferrer" class="text-amber-300 hover:underline text-[11px]">Open in App ↗</a>
+              </div>
+              <iframe title="Google Map" class="w-full h-80 md:h-[420px] border-0 flex-1" loading="lazy" src="https://maps.google.com/maps?q=${encodeURIComponent(activePinQuery)}&t=&z=14&ie=UTF8&iwloc=&output=embed"></iframe>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function focusMapPlace(query) {
+      state.activeMapQuery = query;
+      render();
+    }
+
+    function renderSharedDocsHubView(trip) {
+      const sharedDocs = trip.sectionDocs.shared_docs || [];
+      // Gather all documents across cities, stops, and sections so everything is visible & shareable in one hub
+      const allTripDocs = [];
+      sharedDocs.forEach(d => allTripDocs.push({ doc: d, source: 'Shared Vault', targetType: 'section', targetId: 'shared_docs', subId: '' }));
+      trip.cities.forEach(c => {
+        (c.docs || []).forEach(d => allTripDocs.push({ doc: d, source: c.name, targetType: 'city', targetId: c.id, subId: '' }));
+        (c.activities || []).forEach(a => {
+          (a.docs || []).forEach(d => allTripDocs.push({ doc: d, source: `${c.name} • ${a.title}`, targetType: 'activity', targetId: c.id, subId: a.id }));
+        });
+      });
+
+      return `
+        <div class="space-y-4 animate-fade">
+          <div class="bg-white rounded-3xl border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 class="text-lg font-extrabold text-slate-900">Shared Documents & Travel Vault</h2>
+              <p class="text-xs text-slate-500">Upload passports, insurance, tickets, or itineraries and share them directly with your travel partner.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="shareTripSummary()" class="px-3.5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center gap-1.5">
+                <i class="fa-solid fa-share-nodes"></i> Share Trip Summary
+              </button>
+              <button type="button" onclick="exportTripJsonBackup()" class="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-1.5">
+                <i class="fa-solid fa-file-code"></i> Export Sync File (.JSON)
+              </button>
+            </div>
+          </div>
+
+          ${renderAttachmentStrip(sharedDocs, 'section', 'shared_docs', '', 'Upload Shared Files (PDF, Images, Docs)')}
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${allTripDocs.length === 0 ? `
+              <div class="sm:col-span-2 lg:col-span-3 bg-white rounded-3xl border border-dashed border-slate-300 p-8 text-center text-xs text-slate-500">
+                No documents uploaded yet. Tap <strong>Upload Doc</strong> above to add boarding passes, insurance PDFs, or hotel confirmations.
+              </div>
+            ` : allTripDocs.map(item => `
+              <div class="bg-white rounded-3xl border border-slate-200 p-4 flex flex-col justify-between gap-3 shadow-2xs">
+                <div class="flex items-start gap-3">
+                  <div class="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 text-base">
+                    <i class="fa-solid ${item.doc.type.startsWith('image/') ? 'fa-image text-rose-500' : 'fa-file-pdf'}"></i>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(item.doc.name)}</div>
+                    <div class="text-[11px] text-slate-500 truncate mt-0.5">${escapeHtml(item.source)}</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                  <button type="button" onclick="openDocumentViewer('${item.targetType}', '${item.targetId}', '${item.subId}', '${item.doc.id}')" class="flex-1 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold">
+                    Open
+                  </button>
+                  <button type="button" onclick="shareSingleDocument('${item.targetType}', '${item.targetId}', '${item.subId}', '${item.doc.id}')" class="flex-1 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-extrabold">
+                    <i class="fa-solid fa-share-from-square mr-1"></i>Share
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    async function shareSingleDocument(targetType, targetId, subId, docId) {
+      const trip = getActiveTrip();
+      const list = getDocListByTarget(trip, targetType, targetId, subId) || [];
+      const doc = list.find(d => d.id === docId);
+      if (!doc) return;
+      try {
+        const res = await fetch(doc.dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], doc.name, { type: doc.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: doc.name, text: `${trip.name} — ${doc.name}`, files: [file] });
+          return;
+        }
+      } catch (e) {}
+      const a = document.createElement('a');
+      a.href = doc.dataUrl;
+      a.download = doc.name;
+      a.click();
+      showToast('File downloaded — ready to share via WhatsApp/Email');
+    }
+
+    async function shareTripSummary() {
+      const trip = getActiveTrip();
+      const summary = `${trip.name} (${trip.dates})\n` +
+        trip.cities.map(c => `• ${c.name} (${c.dates}): ${c.activities.map(a => a.title).join(', ') || 'No stops yet'}`).join('\n');
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: trip.name, text: summary });
+          return;
+        } catch (e) {}
+      }
+      const ta = document.createElement('textarea');
+      ta.value = summary;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Trip itinerary summary copied to clipboard!');
+    }
+
+    function exportTripJsonBackup() {
+      const blob = new Blob([JSON.stringify({ trips: state.trips }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'trip-data.json';
+      a.click();
+      showToast('Exported trip-data.json');
+    }
+
+    function renderGuidesView(trip) {
+      const docs = trip.sectionDocs.guides || [];
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">Offline Travel Guides & Cheat Sheets</h2>
+          ${renderAttachmentStrip(docs, 'section', 'guides', '', 'Downloaded PDF Guides & Phrasebooks')}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${trip.guides.map(g => `
+              <div class="bg-white rounded-3xl border border-slate-200 p-4 space-y-1.5">
+                <h3 class="text-sm font-extrabold text-slate-900">${escapeHtml(g.title)}</h3>
+                <p class="text-xs text-slate-600 leading-relaxed">${linkifyText(g.body)}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCalendarView(trip) {
+      const docs = trip.sectionDocs.calendar || [];
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">Phone Calendar Sync (iOS & Android)</h2>
+          ${renderAttachmentStrip(docs, 'section', 'calendar', '', 'Calendar Schedule Files')}
+          <div class="bg-white rounded-3xl border border-slate-200 p-5 space-y-3">
+            <p class="text-xs text-slate-600 leading-relaxed">Export all cities, flights, and hotel dates into a universal <strong>.ics calendar file</strong> that imports directly into <strong>Apple Calendar (iPhone/iPad)</strong> and <strong>Google Calendar (Android/PC)</strong>.</p>
+            <button type="button" onclick="downloadTripIcs()" class="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center gap-2">
+              <i class="fa-solid fa-calendar-arrow-down"></i> Download Trip Calendar (.ICS)
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function downloadTripIcs() {
+      const trip = getActiveTrip();
+      const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//VoyageLog//Trip Planner//EN'];
+      trip.cities.forEach((c, idx) => {
+        const day = String(12 + idx * 3).padStart(2, '0');
+        lines.push('BEGIN:VEVENT', `UID:${c.id}@voyagelog`, `DTSTAMP:20261101T120000Z`, `DTSTART;VALUE=DATE:202611${day}`, `SUMMARY:${trip.name}: ${c.name}`, `DESCRIPTION:${(c.note || '').replace(/\n/g, ' ')}`, 'END:VEVENT');
+      });
+      lines.push('END:VCALENDAR');
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${trip.name.toLowerCase().replace(/\s+/g, '_')}.ics`;
+      a.click();
+      showToast('Calendar .ICS downloaded');
+    }
+
+    function renderBudgetView(trip) {
+      const cur = trip.currency || '$';
+      const docs = trip.sectionDocs.budget || [];
+      const actTotal = trip.cities.reduce((sum, c) => sum + c.activities.reduce((s, a) => s + (Number(a.price) || 0), 0), 0);
+      const tktTotal = trip.tickets.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+      const grand = actTotal + tktTotal;
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">Trip Expense & Budget Tracker</h2>
+          ${renderAttachmentStrip(docs, 'section', 'budget', '', 'Receipts & Expense Invoices')}
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-slate-900 text-white rounded-3xl p-4">
+              <div class="text-[11px] text-slate-300 font-semibold">Total Trip Cost</div>
+              <div class="text-2xl font-extrabold mt-1">${cur}${grand.toFixed(2)}</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-3xl p-4">
+              <div class="text-[11px] text-slate-500 font-semibold">Activities & Food</div>
+              <div class="text-xl font-extrabold text-slate-900 mt-1">${cur}${actTotal.toFixed(2)}</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-3xl p-4">
+              <div class="text-[11px] text-slate-500 font-semibold">Flights & Lodging</div>
+              <div class="text-xl font-extrabold text-slate-900 mt-1">${cur}${tktTotal.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAskGeminiView(trip) {
+      const city = getSelectedCity(trip);
+      const promptText = `We are planning our ${trip.name} (${trip.dates}). Currently looking at ${city?.name || 'our itinerary'}. Suggest top local restaurants, safe transport tips, and hidden gems.`;
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">Ask Your Gemini Assistant</h2>
+          <div class="bg-white rounded-3xl border border-slate-200 p-5 space-y-3">
+            <p class="text-xs text-slate-600 leading-relaxed">Copies your current trip context and opens your personal <strong>Gemini</strong> app or web interface directly—no paid API key required.</p>
+            <div class="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">${escapeHtml(promptText)}</div>
+            <button type="button" onclick="launchGeminiWithContext(\`${escapeHtml(promptText)}\`)" class="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold flex items-center gap-2">
+              <i class="fa-solid fa-sparkles"></i> Copy Trip Context & Open Gemini
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function launchGeminiWithContext(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Trip context copied! Opening Gemini...');
+      window.open('https://gemini.google.com/app', '_blank', 'noopener,noreferrer');
+    }
+
+    function renderGitHubSyncView() {
+      const gh = state.github || {};
+      return `
+        <div class="space-y-4 animate-fade">
+          <h2 class="text-lg font-extrabold text-slate-900">GitHub Backend Storage & Sync</h2>
+          <div class="bg-white rounded-3xl border border-slate-200 p-5 space-y-3">
+            <p class="text-xs text-slate-600">Connect a private GitHub repository to store all trips, photos, and documents in <code class="bg-slate-100 px-1.5 py-0.5 rounded">trip-data.json</code> across your phone, tablet, and PC.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input id="gh-owner" type="text" value="${escapeHtml(gh.owner || '')}" placeholder="GitHub Username" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+              <input id="gh-repo" type="text" value="${escapeHtml(gh.repo || '')}" placeholder="Repository Name (e.g. our-trip)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+              <input id="gh-branch" type="text" value="${escapeHtml(gh.branch || 'main')}" placeholder="Branch (main)" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+              <input id="gh-token" type="password" value="${escapeHtml(gh.token || '')}" placeholder="Fine-Grained Repo Token" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none" />
+            </div>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button type="button" onclick="saveGitHubConfig()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-extrabold">Save Settings</button>
+              <button type="button" onclick="pushToGitHub(false)" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">Push to GitHub</button>
+              <button type="button" onclick="pullFromGitHub()" class="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-extrabold">Pull from GitHub</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveGitHubConfig() {
+      state.github = {
+        owner: document.getElementById('gh-owner').value.trim(),
+        repo: document.getElementById('gh-repo').value.trim(),
+        branch: document.getElementById('gh-branch').value.trim() || 'main',
+        path: 'trip-data.json',
+        token: document.getElementById('gh-token').value.trim(),
+        lastSync: state.github?.lastSync || ''
+      };
+      saveState();
+      showToast('GitHub settings saved');
+    }
+
+    async function pushToGitHub(silent = false) {
+      const gh = state.github;
+      if (!gh?.owner || !gh?.repo || !gh?.token) {
+        if (!silent) showToast('Enter GitHub owner, repo & token first');
+        return;
+      }
+      try {
+        const apiUrl = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${gh.path || 'trip-data.json'}`;
+        let sha = undefined;
+        const getRes = await fetch(apiUrl, { headers: { Authorization: `Bearer ${gh.token}` } });
+        if (getRes.ok) {
+          const existing = await getRes.json();
+          sha = existing.sha;
+        }
+        const payload = btoa(unescape(encodeURIComponent(JSON.stringify({ trips: state.trips }, null, 2))));
+        const putRes = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${gh.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Sync VoyageLog trip data', content: payload, branch: gh.branch || 'main', sha })
+        });
+        if (!putRes.ok) throw new Error('GitHub sync failed');
+        state.queuedMutations = 0;
+        saveState();
+        updateSyncBanner();
+        if (!silent) showToast('Synced to GitHub!');
+      } catch (err) {
+        if (!silent) showToast('GitHub sync error — check repo/token');
+      }
+    }
+
+    async function pullFromGitHub() {
+      const gh = state.github;
+      if (!gh?.owner || !gh?.repo || !gh?.token) {
+        showToast('Enter GitHub owner, repo & token first');
+        return;
+      }
+      try {
+        const apiUrl = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${gh.path || 'trip-data.json'}`;
+        const res = await fetch(apiUrl, { headers: { Authorization: `Bearer ${gh.token}` } });
+        if (!res.ok) throw new Error('Not found');
+        const data = await res.json();
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+        if (Array.isArray(decoded.trips) && decoded.trips.length > 0) {
+          state.trips = decoded.trips;
+          state.activeTripId = state.trips[0].id;
+          state.selectedCityId = state.trips[0].cities[0]?.id || '';
+          saveState();
+          render();
+          showToast('Pulled latest trip from GitHub!');
+        }
+      } catch (err) {
+        showToast('Could not pull trip-data.json from GitHub');
+      }
+    }
+
+    // =========================================================================
+    // 8. EXPORT STANDALONE HTML TRAVEL BLOG
+    // =========================================================================
+    function exportTravelBlog() {
+      const trip = getActiveTrip();
+      const cur = trip.currency || '$';
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${escapeHtml(trip.name)} — Travel Story Blog</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 24px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  header { background: #0f172a; color: #fff; padding: 32px; border-radius: 24px; margin-bottom: 28px; }
+  h1 { margin: 0 0 6px; font-size: 28px; }
+  .chapter { margin-bottom: 36px; }
+  .city-note { background: #fff1f2; border-left: 4px solid #f43f5e; padding: 14px 16px; border-radius: 12px; margin-bottom: 18px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; overflow: hidden; margin-bottom: 18px; }
+  .card img { width: 100%; display: block; object-fit: cover; }
+  .card-body { padding: 18px; }
+  a { color: #2563eb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>${escapeHtml(trip.name)}</h1>
+    <div>${escapeHtml(trip.dates)}</div>
+  </header>
+  ${trip.cities.map(c => `
+    <section class="chapter">
+      <h2>${escapeHtml(c.name)} <small style="color:#64748b;font-weight:normal;">(${escapeHtml(c.dates)})</small></h2>
+      ${c.note ? `<div class="city-note">${linkifyText(c.note)}</div>` : ''}
+      ${c.activities.map(a => `
+        <article class="card">
+          ${a.photo ? `<img src="${a.photo}" style="max-height:${a.photoHeight || 320}px;object-fit:${a.photoShape === 'fit' ? 'contain' : 'cover'};" alt="${escapeHtml(a.title)}" />` : ''}
+          <div class="card-body">
+            <div style="font-size:12px;color:#64748b;font-weight:bold;">${escapeHtml(a.category)} ${a.price > 0 ? `• ${cur}${a.price}` : ''}</div>
+            <h3 style="margin:6px 0;">${escapeHtml(a.title)}</h3>
+            <p style="line-height:1.6;margin:8px 0 0;">${linkifyText(a.note || '')}</p>
+          </div>
+        </article>
+      `).join('')}
+    </section>
+  `).join('')}
+</div>
+</body>
+</html>`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${trip.name.toLowerCase().replace(/\s+/g, '_')}_blog.html`;
+      a.click();
+      showToast('Exported standalone HTML blog!');
+    }
+
+    // =========================================================================
+    // 9. MASTER RENDER LOOP
+    // =========================================================================
+    function render() {
+      const trip = getActiveTrip();
+      const cur = trip.currency || '$';
+
+      // Sunset Hero Header Trip Pills & Stats
+      const pillsBar = document.getElementById('trip-pills-bar');
+      pillsBar.innerHTML = state.trips.map(t => {
+        const isActive = t.id === trip.id;
+        return `
+          <button type="button" onclick="switchTrip('${t.id}')" class="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+            isActive ? 'bg-white text-rose-600 shadow-xs' : 'bg-black/20 hover:bg-black/30 text-white'
+          }">
+            <i class="fa-solid fa-earth-americas"></i>
+            <span>${escapeHtml(t.name)}</span>
+          </button>
+        `;
+      }).join('');
+
+      document.getElementById('trip-dates-subtitle').textContent = trip.dates;
+      document.getElementById('hero-trip-title').textContent = trip.name;
+      document.getElementById('hero-cities-line').textContent = trip.cities.map(c => c.name).join(' • ') || 'Add your first city';
+
+      const totalActivities = trip.cities.reduce((sum, c) => sum + c.activities.length, 0);
+      const visitedActivities = trip.cities.reduce((sum, c) => sum + c.activities.filter(a => a.visited).length, 0);
+      document.getElementById('stat-cities-count').textContent = trip.cities.length;
+      document.getElementById('stat-visited-count').textContent = `${visitedActivities} / ${totalActivities}`;
+
+      const totalSpent =
+        trip.cities.reduce((sum, c) => sum + c.activities.reduce((s, a) => s + (Number(a.price) || 0), 0), 0) +
+        trip.tickets.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+      document.getElementById('header-total-spent').textContent = `${cur}${totalSpent.toFixed(0)}`;
+
+      // Render Mobile Module Strip & PC Desktop Sidebar
+      document.getElementById('mobile-module-strip').innerHTML = MODULES.map(m => `
+        <button type="button" onclick="switchTab('${m.id}')" class="shrink-0 flex flex-col items-center gap-1 px-3.5 py-2 rounded-2xl text-[11px] font-bold transition ${
+          state.activeTab === m.id ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+        }">
+          <i class="fa-solid ${m.icon} text-xs"></i>
+          <span>${m.label}</span>
+        </button>
+      `).join('');
+
+      document.getElementById('desktop-nav').innerHTML = MODULES.map(m => `
+        <button type="button" onclick="switchTab('${m.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-bold transition ${
+          state.activeTab === m.id ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+        }">
+          <i class="fa-solid ${m.icon} w-4 text-center"></i>
+          <span>${m.label}</span>
+        </button>
+      `).join('');
+
+      // Highlight Mobile Bottom Bar
+      document.querySelectorAll('.mobile-bottom-btn').forEach(btn => {
+        const active = btn.dataset.nav === state.activeTab;
+        btn.classList.toggle('text-rose-500', active);
+        btn.classList.toggle('text-slate-500', !active);
+      });
+
+      // Route Active View
+      const main = document.getElementById('main-content');
+      switch (state.activeTab) {
+        case 'story':
+          main.innerHTML = renderStoryBlogView(trip);
+          break;
+        case 'shared_docs':
+          main.innerHTML = renderSharedDocsHubView(trip);
+          break;
+        case 'reservations':
+          main.innerHTML = renderTicketsSection(trip, null, 'reservations', 'All Reservations & Tickets');
+          break;
+        case 'lodging':
+          main.innerHTML = renderTicketsSection(trip, 'lodging', 'lodging', 'Lodging & Stays');
+          break;
+        case 'flights':
+          main.innerHTML = renderTicketsSection(trip, 'flight', 'flights', 'Flight Status & Boarding Passes');
+          break;
+        case 'packing':
+          main.innerHTML = renderPackingView(trip);
+          break;
+        case 'route':
+          main.innerHTML = renderRouteMapsView(trip);
+          break;
+        case 'guides':
+          main.innerHTML = renderGuidesView(trip);
+          break;
+        case 'calendar':
+          main.innerHTML = renderCalendarView(trip);
+          break;
+        case 'budget':
+          main.innerHTML = renderBudgetView(trip);
+          break;
+        case 'ai':
+          main.innerHTML = renderAskGeminiView(trip);
+          break;
+        case 'sync':
+          main.innerHTML = renderGitHubSyncView();
+          break;
+        case 'itinerary':
+        default:
+          main.innerHTML = renderItineraryView(trip);
+          break;
+      }
+    }
+
+    // Initialize cleanly
+    function initApp() {
+      updateSyncBanner();
+      render();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
+  </script>
+</body>
+</html>
